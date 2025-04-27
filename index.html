@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>GastroVital Score Rechner</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 10px;
+                background: #e0e5ec;
+                font-family: Arial, sans-serif;
+            }
+            .container {
+                max-width: 420px;
+                background: #e0e5ec;
+                border-radius: 10px;
+                box-shadow: 8px 8px 16px #c5c9d2, -8px -8px 16px #ffffff;
+                margin: 10px auto;
+                padding: 15px;
+            }
+            h1 {
+                text-align: center;
+                font-size: 24px;
+                margin-bottom: 20px;
+                color: #333;
+            }
+            form {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+            .input-container {
+                display: flex;
+                flex-direction: row;
+                gap: 10px;
+                align-items: center;
+                width: 100%;
+            }
+            .input-container > div {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+            }
+            label {
+                margin-bottom: 6px;
+                font-size: 14px;
+                color: #555;
+            }
+            input[type="text"] {
+                border: none;
+                outline: none;
+                padding: 10px;
+                border-radius: 6px;
+                background: #e0e5ec;
+                box-shadow: inset 2px 2px 4px #c5c9d2,
+                    inset -2px -2px 4px #ffffff5c;
+                font-size: 14px;
+                color: #333;
+                border: 1px solid #ffffff00;
+                /* background: linear-gradient(162deg, #e0e5ec, #e9f0f9); */
+            }
+            input:focus {
+                border: 1px solid #ffffff5c;
+            }
+            input::placeholder {
+                font-size: 12px;
+                color: #999;
+            }
+            .result {
+                display: flex !important;
+                flex-direction: column;
+                justify-content: flex-start;
+                top: 13px;
+                position: relative;
+            }
+            .result div {
+                font-size: 12px;
+                line-height: 15px;
+                color: #555;
+            }
+            .score {
+                display: flex;
+                gap: 5px;
+                margin-top: 8px;
+            }
+            .circle {
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-size: 16px;
+                position: relative;
+                box-shadow: 2px 2px 6px #c5c9d2, -2px -2px 6px #ffffff;
+                color: white;
+                top: -3px;
+            }
+
+            .circle.green2::after {
+                content: "+";
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+            }
+
+            .circle.green1::after {
+                content: "+";
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+            }
+
+            .circle.red2::after {
+                content: "–";
+                position: absolute;
+                left: 50%;
+                top: 45%;
+                transform: translate(-50%, -45%);
+            }
+
+            .circle.red1::after {
+                content: "–";
+                position: absolute;
+                left: 50%;
+                top: 45%;
+                transform: translate(-50%, -45%);
+            }
+
+            .green2 {
+                background: #4caf50;
+            }
+            .green1 {
+                background: #8bc34a;
+            }
+            .red2 {
+                background: #f44336;
+            }
+            .red1 {
+                background: #ff9800;
+            }
+            #results {
+                margin-top: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>GastroVital Score Rechner</h1>
+            <form id="scoreForm"></form>
+            <div id="results"></div>
+        </div>
+
+        <script>
+            const kennzahlen = [
+                { name: "GOP in % des Umsatzes", benchmark: 19.16, test: 0 },
+                { name: "Mitarbeiterkosten in %", benchmark: 36.11, test: 35 },
+                { name: "Wareneinsatz gesamt in %", benchmark: 30.0, test: 29 },
+                {
+                    name: "Umsatz je Sitzplatz (EUR)",
+                    benchmark: 7646.0,
+                    test: 8520,
+                },
+                {
+                    name: "Umsatz je Mitarbeiter (VZÄ)",
+                    benchmark: 99297.0,
+                    test: 92500,
+                },
+                { name: "Fluktuationsquote in %", benchmark: 18.47, test: 19 },
+                {
+                    name: "ESG: Lieferanten <100km in %",
+                    benchmark: 80.0,
+                    test: 81,
+                },
+                { name: "Energiekosten in %", benchmark: 2.93, test: 0.1 },
+                {
+                    name: "Wasserverbrauch je Sitzplatz (m³)",
+                    benchmark: 7.69,
+                    test: 0,
+                },
+                {
+                    name: "Abfall je Sitzplatz (kg)",
+                    benchmark: 50.11,
+                    test: 100,
+                },
+            ];
+
+            const form = document.getElementById("scoreForm");
+
+            kennzahlen.forEach((kz, index) => {
+                const id = `input${index}`;
+                form.innerHTML += `
+                <div class="input-container">
+                    <div>
+                        <label for="${id}">${kz.name}</label>
+                        <input type="text" id="${id}" value="" placeholder="Benchmark (Median): ${kz.benchmark}">
+                    </div>
+                    <div class="result">
+                        <div id="abweichung${index}"></div>
+                        <div id="scoreText${index}" class="score"></div>
+                    </div>
+                </div>
+            `;
+            });
+
+            const scoreCalc = (diff, benchmarkName) => {
+                const specialBenchmarks = [
+                    "Umsatz je Sitzplatz (EUR)",
+                    "Umsatz je Mitarbeiter (VZÄ)",
+                    "GOP in % des Umsatzes",
+                    "ESG: Lieferanten <100km in %",
+                ];
+                if (specialBenchmarks.includes(benchmarkName)) {
+                    if (diff >= 5) return { score: "++", color: "green2" };
+                    if (diff >= 0) return { score: "+", color: "green1" };
+                    if (diff >= -5) return { score: "-", color: "red1" };
+                    return { score: "--", color: "red2" };
+                } else {
+                    if (diff <= -5) return { score: "++", color: "green2" };
+                    if (diff <= 0) return { score: "+", color: "green1" };
+                    if (diff <= 5) return { score: "-", color: "red1" };
+                    return { score: "--", color: "red2" };
+                }
+            };
+
+            window.calculateScore = function () {
+                kennzahlen.forEach((kz, index) => {
+                    let inputValue = document.getElementById(
+                        `input${index}`
+                    ).value;
+                    inputValue = inputValue.replace(",", ".");
+                    document.getElementById(`input${index}`).value = inputValue;
+
+                    const val = parseFloat(inputValue);
+                    if (isNaN(val)) return;
+
+                    const abweichung = +(val - kz.benchmark).toFixed(2);
+                    const { score, color } = scoreCalc(abweichung, kz.name);
+
+                    document.getElementById(
+                        `abweichung${index}`
+                    ).innerHTML = `Abweichung: ${abweichung}`;
+                    document.getElementById(`scoreText${index}`).innerHTML =
+                        "Score:" +
+                        score
+                            .split("")
+                            .map(
+                                (symbol) =>
+                                    `<span class="circle ${color}"></span>`
+                            )
+                            .join("");
+                });
+            };
+
+            kennzahlen.forEach((kz, index) => {
+                const input = document.getElementById(`input${index}`);
+                input.addEventListener("blur", function () {
+                    let value = input.value.replace(",", ".");
+                    input.value = value;
+                    calculateScore();
+                });
+                input.addEventListener("keydown", function (event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        let value = input.value.replace(",", ".");
+                        input.value = value;
+                        calculateScore();
+                        const nextInput = document.getElementById(
+                            `input${index + 1}`
+                        );
+                        if (nextInput) nextInput.focus();
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>
